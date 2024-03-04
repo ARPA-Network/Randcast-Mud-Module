@@ -69,7 +69,7 @@ contract RandcastSystem is System {
     }
 
     function estimateCallbackGas(uint32 callBackGas) public pure returns (uint32) {
-        return callBackGas + 1000000;
+        return callBackGas + 200000;
     }
 
     function estimateRequestFee(uint32 callBackGas, uint64 subId) public view returns (uint256) {
