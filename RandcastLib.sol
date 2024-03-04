@@ -13,10 +13,15 @@ function getRandomness(uint64 subId, bytes32 entityId) returns (bytes32 requestI
   );
 }
 
-function getRandomnessWithCallback(uint64 subId, bytes32 entityId, uint32 callbackGas, bytes4 callbackSelector) {
-  SystemSwitch.call(
-    SYSTEM_ID,
-    abi.encodeCall(RandcastSystem.getRandomNumberWithCallback, (subId, entityId, callbackGas, callbackSelector))
+function getRandomnessWithCallback(uint64 subId, bytes32 entityId, uint32 callbackGas, bytes4 callbackSelector)
+  returns (bytes32 requestId)
+{
+  return abi.decode(
+    SystemSwitch.call(
+      SYSTEM_ID,
+      abi.encodeCall(RandcastSystem.getRandomNumberWithCallback, (subId, entityId, callbackGas, callbackSelector))
+    ),
+    (bytes32)
   );
 }
 
