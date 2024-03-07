@@ -50,7 +50,6 @@ contract RandcastModule is Module {
     (success, data) =
       address(world).delegatecall(abi.encodeCall(world.registerSystem, (SYSTEM_ID, randcastSystem, false)));
     if (!success) revertWithBytes(data);
-    emit SystemAddress(address(randcastSystem));
 
     // Register system's functions
     (success, data) = address(world).delegatecall(
@@ -59,10 +58,12 @@ contract RandcastModule is Module {
         (SYSTEM_ID, "fulfillRandomness(bytes32,uint256,bytes32)", randcastSystem.fulfillRandomness.selector)
       )
     );
+
     if (!success) revertWithBytes(data);
     (address consumerWrapperAddress, address adapterAddress) = abi.decode(args, (address, address));
     RandcastConfig.setConsumerWrapperAddress(CONFIG_TABLE_ID, bytes32(0), consumerWrapperAddress);
     RandcastConfig.setAdapterAddress(CONFIG_TABLE_ID, bytes32(0), adapterAddress);
+    RandcastConfig.setSystemAddress(CONFIG_TABLE_ID, bytes32(0), address(randcastSystem));
   }
 
   function install(bytes memory /* args */ ) public {

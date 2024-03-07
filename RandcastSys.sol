@@ -4,10 +4,9 @@ pragma solidity ^0.8.18;
 import { IConsumerWrapper } from "./interfaces/IConsumerWrapper.sol";
 import { IAdapter } from "./interfaces/IAdapter.sol";
 import { System } from "@latticexyz/world/src/System.sol";
-import { TABLE_ID, CONFIG_TABLE_ID, SYSTEM_ID } from "./constants.sol";
-import { Randcast, RandcastData } from "./tables/Randcast.sol";
+import { TABLE_ID, CONFIG_TABLE_ID } from "./constants.sol";
+import { Randcast } from "./tables/Randcast.sol";
 import { RandcastConfig } from "./tables/RandcastConfig.sol";
-import { SystemSwitch } from "@latticexyz/world-modules/src/utils/SystemSwitch.sol";
 // solhint-disable-next-line no-global-import
 
 contract RandcastSystem is System {
@@ -17,16 +16,14 @@ contract RandcastSystem is System {
   error ConsumerAdditionFailed();
   error SubscriptionFundingFailed();
   error ConsumerRemovalFailed();
+  error InsufficientFunds(uint256, uint256);
 
   function getRandomNumber(uint64 subId, bytes32 entityId) external payable returns (bytes32 requestId) {
     uint32 callbackGas = estimateCallbackGas(0);
-    uint256 msgValue = estimateRequestFee(callbackGas, subId);
-    if (subId != 0) {
-      msgValue = 0;
-    }
+    uint256 msgValue = subId == 0 ? estimateRequestFee(callbackGas, subId) : 0;
     address consumerWapper = RandcastConfig.getConsumerWrapperAddress(CONFIG_TABLE_ID, bytes32(0));
     requestId = IConsumerWrapper(consumerWapper).getRandomNumber{ value: msgValue }(
-      subId, entityId, callbackGas, address(this), this.fulfillRandomness.selector
+      subId, entityId, callbackGas, _world(), this.fulfillRandomness.selector
     );
     if (requestId == 0) {
       revert RequestFailed();
@@ -40,13 +37,13 @@ contract RandcastSystem is System {
   {
     Randcast.setCallbackFunctionSelector(TABLE_ID, entityId, callbackSelector);
     callbackGas = estimateCallbackGas(callbackGas);
-    uint256 msgValue = estimateRequestFee(callbackGas, subId);
-    if (subId != 0) {
-      msgValue = 0;
-    }
+    uint256 msgValue = subId == 0 ? estimateRequestFee(callbackGas, subId) : 0;
     address consumerWapper = RandcastConfig.getConsumerWrapperAddress(CONFIG_TABLE_ID, bytes32(0));
-    requestId = IConsumerWrapper(consumerWapper).getRandomNumber{ value: msgValue * 3 / 2 }(
-      subId, entityId, callbackGas, address(this), this.fulfillRandomness.selector
+    if (address(this).balance < msgValue) {
+      revert InsufficientFunds(address(this).balance, msgValue);
+    }
+    requestId = IConsumerWrapper(consumerWapper).getRandomNumber{ value: msgValue }(
+      subId, entityId, callbackGas, _world(), this.fulfillRandomness.selector
     );
     if (requestId == 0) {
       revert RequestFailed();
@@ -142,4 +139,10 @@ contract RandcastSystem is System {
     address adapter = RandcastConfig.getAdapterAddress(CONFIG_TABLE_ID, bytes32(0));
     return IAdapter(adapter).getCurrentSubId();
   }
+
+  function getSystemAddress() external view returns (address) {
+    return RandcastConfig.getSystemAddress(CONFIG_TABLE_ID, bytes32(0));
+  }
+
+  receive() external payable { }
 }

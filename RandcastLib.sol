@@ -4,8 +4,9 @@ pragma solidity ^0.8.18;
 import { System } from "@latticexyz/world/src/System.sol";
 import { RandcastSystem } from "../Randcast-Mud-Module/RandcastSys.sol";
 import { SystemSwitch } from "@latticexyz/world-modules/src/utils/SystemSwitch.sol";
-import { SYSTEM_ID, TABLE_ID } from "../Randcast-Mud-Module/constants.sol";
+import { SYSTEM_ID } from "../Randcast-Mud-Module/constants.sol";
 import { Randcast } from "../Randcast-Mud-Module/tables/Randcast.sol";
+
 
 function getRandomness(uint64 subId, bytes32 entityId) returns (bytes32 requestId) {
   return abi.decode(
@@ -86,4 +87,8 @@ function getSubscription(uint64 subId)
 
 function getCurrentSubId() returns (uint64) {
   return abi.decode(SystemSwitch.call(SYSTEM_ID, abi.encodeCall(RandcastSystem.getCurrentSubId, ())), (uint64));
+}
+
+function getSystemAddress() returns (address) {
+  return abi.decode(SystemSwitch.call(SYSTEM_ID, abi.encodeCall(RandcastSystem.getSystemAddress, ())), (address));
 }
