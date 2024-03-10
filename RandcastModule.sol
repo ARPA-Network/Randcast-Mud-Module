@@ -10,9 +10,10 @@ import { revertWithBytes } from "@latticexyz/world/src/revertWithBytes.sol";
 
 import { Randcast } from "./tables/Randcast.sol";
 import { RandcastConfig } from "./tables/RandcastConfig.sol";
+import { WorldBalance } from "./tables/WorldBalance.sol";
 import { RandcastSystem } from "./RandcastSys.sol";
 
-import { MODULE_NAME, TABLE_ID, CONFIG_TABLE_ID, SYSTEM_ID, NAMESPACE_ID } from "./constants.sol";
+import { MODULE_NAME, RANDCAST_TABLE_ID, CONFIG_TABLE_ID, WORLD_BALANCE_TABLE_ID, SYSTEM_ID, NAMESPACE_ID } from "./constants.sol";
 
 /**
  * This module creates a table that stores a nonce, and
@@ -20,8 +21,6 @@ import { MODULE_NAME, TABLE_ID, CONFIG_TABLE_ID, SYSTEM_ID, NAMESPACE_ID } from 
  */
 contract RandcastModule is Module {
   event SystemAddress(address);
-  // Since the UniqueEntitySystem only exists once per World and writes to
-  // known tables, we can deploy it once and register it in multiple Worlds.
 
   RandcastSystem private immutable randcastSystem = new RandcastSystem();
 
@@ -43,8 +42,9 @@ contract RandcastModule is Module {
     if (!success) revertWithBytes(data);
 
     // Register table
-    Randcast._register(TABLE_ID);
+    Randcast._register(RANDCAST_TABLE_ID);
     RandcastConfig._register(CONFIG_TABLE_ID);
+    WorldBalance._register(WORLD_BALANCE_TABLE_ID);
 
     // Register system
     (success, data) =
@@ -66,7 +66,7 @@ contract RandcastModule is Module {
     RandcastConfig.setSystemAddress(CONFIG_TABLE_ID, bytes32(0), address(randcastSystem));
   }
 
-  function install(bytes memory /* args */ ) public {
+  function install(bytes memory /* args */ ) public pure{
     revert Module_NonRootInstallNotSupported();
   }
 }

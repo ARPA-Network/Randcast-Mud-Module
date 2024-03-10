@@ -7,11 +7,14 @@ import {RESOURCE_TABLE, RESOURCE_SYSTEM, RESOURCE_NAMESPACE} from "@latticexyz/w
 bytes14 constant NAMESPACE = bytes14("randcast");
 bytes16 constant MODULE_NAME = bytes16("randcast");
 bytes16 constant SYSTEM_NAME = bytes16("RandcastSystem");
-bytes16 constant TABLE_NAME = bytes16("table");
-bytes16 constant CONFIG_TABLE_NAME = bytes16("config");
+bytes16 constant RANDCAST_TABLE_NAME = bytes16("randcast");
+bytes16 constant CONFIG_TABLE_NAME = bytes16("randcastConfig");
+bytes16 constant WORLD_BALANCE_TABLE_NAME = bytes16("worldBalance");
 
 ResourceId constant NAMESPACE_ID = ResourceId.wrap(bytes32(abi.encodePacked(RESOURCE_NAMESPACE, NAMESPACE)));
-ResourceId constant TABLE_ID = ResourceId.wrap(bytes32(abi.encodePacked(RESOURCE_TABLE, NAMESPACE, TABLE_NAME)));
+ResourceId constant RANDCAST_TABLE_ID = ResourceId.wrap(bytes32(abi.encodePacked(RESOURCE_TABLE, NAMESPACE, RANDCAST_TABLE_NAME)));
 ResourceId constant CONFIG_TABLE_ID =
     ResourceId.wrap(bytes32(abi.encodePacked(RESOURCE_TABLE, NAMESPACE, CONFIG_TABLE_NAME)));
+ResourceId constant WORLD_BALANCE_TABLE_ID =
+    ResourceId.wrap(bytes32(abi.encodePacked(RESOURCE_TABLE, NAMESPACE, WORLD_BALANCE_TABLE_NAME)));
 ResourceId constant SYSTEM_ID = ResourceId.wrap((bytes32(abi.encodePacked(RESOURCE_SYSTEM, NAMESPACE, SYSTEM_NAME))));

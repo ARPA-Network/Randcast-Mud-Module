@@ -4,9 +4,10 @@ pragma solidity ^0.8.18;
 import { IConsumerWrapper } from "./interfaces/IConsumerWrapper.sol";
 import { IAdapter } from "./interfaces/IAdapter.sol";
 import { System } from "@latticexyz/world/src/System.sol";
-import { TABLE_ID, CONFIG_TABLE_ID } from "./constants.sol";
+import { RANDCAST_TABLE_ID, CONFIG_TABLE_ID, WORLD_BALANCE_TABLE_ID } from "./constants.sol";
 import { Randcast } from "./tables/Randcast.sol";
 import { RandcastConfig } from "./tables/RandcastConfig.sol";
+import { WorldBalance } from "./tables/WorldBalance.sol";
 // solhint-disable-next-line no-global-import
 
 contract RandcastSystem is System {
@@ -16,12 +17,15 @@ contract RandcastSystem is System {
   error ConsumerAdditionFailed();
   error SubscriptionFundingFailed();
   error ConsumerRemovalFailed();
-  error InsufficientFunds(uint256, uint256);
+  error InsufficientBalance();
 
   function getRandomNumber(uint64 subId, bytes32 entityId) external payable returns (bytes32 requestId) {
     uint32 callbackGas = estimateCallbackGas(0);
     uint256 msgValue = subId == 0 ? estimateRequestFee(callbackGas, subId) : 0;
     address consumerWapper = RandcastConfig.getConsumerWrapperAddress(CONFIG_TABLE_ID, bytes32(0));
+    if (address(this).balance < msgValue || (address(this) != _world() && WorldBalance.getBalance(WORLD_BALANCE_TABLE_ID, _world()) < msgValue)){
+      revert InsufficientBalance();
+    }
     requestId = IConsumerWrapper(consumerWapper).getRandomNumber{ value: msgValue }(
       subId, entityId, callbackGas, _world(), this.fulfillRandomness.selector
     );
@@ -35,12 +39,12 @@ contract RandcastSystem is System {
     payable
     returns (bytes32 requestId)
   {
-    Randcast.setCallbackFunctionSelector(TABLE_ID, entityId, callbackSelector);
+    Randcast.setCallbackFunctionSelector(RANDCAST_TABLE_ID, entityId, callbackSelector);
     callbackGas = estimateCallbackGas(callbackGas);
     uint256 msgValue = subId == 0 ? estimateRequestFee(callbackGas, subId) : 0;
     address consumerWapper = RandcastConfig.getConsumerWrapperAddress(CONFIG_TABLE_ID, bytes32(0));
-    if (address(this).balance < msgValue) {
-      revert InsufficientFunds(address(this).balance, msgValue);
+    if (address(this).balance < msgValue || (address(this) != _world() && WorldBalance.getBalance(WORLD_BALANCE_TABLE_ID, _world()) < msgValue)){
+      revert InsufficientBalance();
     }
     requestId = IConsumerWrapper(consumerWapper).getRandomNumber{ value: msgValue }(
       subId, entityId, callbackGas, _world(), this.fulfillRandomness.selector
@@ -51,9 +55,9 @@ contract RandcastSystem is System {
   }
 
   function fulfillRandomness(bytes32 requestId, uint256 randomness, bytes32 entityId) external {
-    Randcast.setRandomness(TABLE_ID, entityId, randomness);
-    Randcast.setRequestId(TABLE_ID, entityId, requestId);
-    bytes4 callbackFunctionSelector = Randcast.getCallbackFunctionSelector(TABLE_ID, entityId);
+    Randcast.setRandomness(RANDCAST_TABLE_ID, entityId, randomness);
+    Randcast.setRequestId(RANDCAST_TABLE_ID, entityId, requestId);
+    bytes4 callbackFunctionSelector = Randcast.getCallbackFunctionSelector(RANDCAST_TABLE_ID, entityId);
     if (callbackFunctionSelector != 0) {
       (bool success,) =
         _world().call(abi.encodeWithSelector(callbackFunctionSelector, abi.encode(requestId, randomness, entityId)));
@@ -64,7 +68,7 @@ contract RandcastSystem is System {
   }
 
   function getRandomnessByEntityId(bytes32 entityId) external view returns (uint256 randomNumber) {
-    return Randcast.getRandomness(TABLE_ID, entityId);
+    return Randcast.getRandomness(RANDCAST_TABLE_ID, entityId);
   }
 
   function estimateCallbackGas(uint32 callBackGas) public pure returns (uint32) {
@@ -96,6 +100,9 @@ contract RandcastSystem is System {
 
   function fundSubscription(uint64 subId, uint256 fundAmount) external payable {
     address adapter = RandcastConfig.getAdapterAddress(CONFIG_TABLE_ID, bytes32(0));
+    if (address(this).balance < fundAmount || (address(this) != _world() && WorldBalance.getBalance(WORLD_BALANCE_TABLE_ID, _world()) < fundAmount)){
+      revert InsufficientBalance();
+    }
     (bool success,) =
       adapter.call{ value: fundAmount }(abi.encodeWithSelector(IAdapter(adapter).fundSubscription.selector, subId));
     if (!success) {
@@ -144,5 +151,8 @@ contract RandcastSystem is System {
     return RandcastConfig.getSystemAddress(CONFIG_TABLE_ID, bytes32(0));
   }
 
-  receive() external payable { }
+  receive() external payable {
+    uint256 balance = WorldBalance.getBalance(WORLD_BALANCE_TABLE_ID, _world());
+    WorldBalance.setBalance(WORLD_BALANCE_TABLE_ID, _world(), balance + msg.value);
+  }
 }
