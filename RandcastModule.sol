@@ -13,7 +13,7 @@ import { RandcastConfig } from "./tables/RandcastConfig.sol";
 import { WorldBalance } from "./tables/WorldBalance.sol";
 import { RandcastSystem } from "./RandcastSys.sol";
 
-import { MODULE_NAME, RANDCAST_TABLE_ID, CONFIG_TABLE_ID, WORLD_BALANCE_TABLE_ID, SYSTEM_ID, NAMESPACE_ID } from "./constants.sol";
+import { MODULE_NAME, RANDCAST_TABLE_ID, CONFIG_TABLE_ID, SYSTEM_ID } from "./constants.sol";
 
 /**
  * This module creates a table that stores a nonce, and
@@ -28,7 +28,7 @@ contract RandcastModule is Module {
     return MODULE_NAME;
   }
 
-  function installRoot(bytes memory args) public {
+  function installRoot(bytes memory) public {
     // Naive check to ensure this is only installed once
     // TODO: only revert if there's nothing to do
     if (InstalledModules.getModuleAddress(getName(), keccak256(args)) != address(0)) {
@@ -36,15 +36,9 @@ contract RandcastModule is Module {
     }
     IBaseWorld world = IBaseWorld(_world());
 
-    // // Register namespace
-    (bool success, bytes memory data) =
-      address(world).delegatecall(abi.encodeCall(world.registerNamespace, (NAMESPACE_ID)));
-    if (!success) revertWithBytes(data);
-
     // Register table
     Randcast._register(RANDCAST_TABLE_ID);
     RandcastConfig._register(CONFIG_TABLE_ID);
-    WorldBalance._register(WORLD_BALANCE_TABLE_ID);
 
     // Register system
     (success, data) =
@@ -60,10 +54,11 @@ contract RandcastModule is Module {
     );
 
     if (!success) revertWithBytes(data);
-    (address consumerWrapperAddress, address adapterAddress) = abi.decode(args, (address, address));
-    RandcastConfig.setConsumerWrapperAddress(CONFIG_TABLE_ID, bytes32(0), consumerWrapperAddress);
-    RandcastConfig.setAdapterAddress(CONFIG_TABLE_ID, bytes32(0), adapterAddress);
-    RandcastConfig.setSystemAddress(CONFIG_TABLE_ID, bytes32(0), address(randcastSystem));
+    (address consumerWrapperAddress, address adapterAddress) = RandcastLib.getCoreComponentAddress();
+    RandcastConfig._setConsumerWrapperAddress(CONFIG_TABLE_ID, bytes32(0), consumerWrapperAddress);
+    RandcastConfig._setAdapterAddress(CONFIG_TABLE_ID, bytes32(0), adapterAddress);
+    // Grant access
+    ResourceAccess._set(SYSTEM_ID, consumerWrapperAddress, true);
   }
 
   function install(bytes memory /* args */ ) public pure{

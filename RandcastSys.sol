@@ -8,9 +8,14 @@ import { RANDCAST_TABLE_ID, CONFIG_TABLE_ID, WORLD_BALANCE_TABLE_ID } from "./co
 import { Randcast } from "./tables/Randcast.sol";
 import { RandcastConfig } from "./tables/RandcastConfig.sol";
 import { WorldBalance } from "./tables/WorldBalance.sol";
+import { SystemRegistry } from "@latticexyz/world/src/codegen/tables/SystemRegistry.sol";
+import { ResourceId, WorldResourceIdInstance } from "@latticexyz/world/src/WorldResourceId.sol";
+import { ROOT_NAMESPACE_ID } from "@latticexyz/world/src/constants.sol";
 // solhint-disable-next-line no-global-import
 
 contract RandcastSystem is System {
+  using WorldResourceIdInstance for ResourceId;
+
   error RequestFailed();
   error CallbackFailed();
   error SubscriptionCreationFailed();
@@ -19,13 +24,11 @@ contract RandcastSystem is System {
   error ConsumerRemovalFailed();
   error InsufficientBalance();
 
-  function getRandomNumber(uint64 subId, bytes32 entityId) external payable returns (bytes32 requestId) {
+  function getRandomNumber(uint64 subId, bytes32 entityId) external returns (bytes32 requestId) {
     uint32 callbackGas = estimateCallbackGas(0);
     uint256 msgValue = subId == 0 ? estimateRequestFee(callbackGas, subId) : 0;
+    _spendBalance(msgValue);
     address consumerWapper = RandcastConfig.getConsumerWrapperAddress(CONFIG_TABLE_ID, bytes32(0));
-    if (address(this).balance < msgValue || (address(this) != _world() && WorldBalance.getBalance(WORLD_BALANCE_TABLE_ID, _world()) < msgValue)){
-      revert InsufficientBalance();
-    }
     requestId = IConsumerWrapper(consumerWapper).getRandomNumber{ value: msgValue }(
       subId, entityId, callbackGas, _world(), this.fulfillRandomness.selector
     );
@@ -36,16 +39,13 @@ contract RandcastSystem is System {
 
   function getRandomNumberWithCallback(uint64 subId, bytes32 entityId, uint32 callbackGas, bytes4 callbackSelector)
     external
-    payable
     returns (bytes32 requestId)
   {
     Randcast.setCallbackFunctionSelector(RANDCAST_TABLE_ID, entityId, callbackSelector);
     callbackGas = estimateCallbackGas(callbackGas);
     uint256 msgValue = subId == 0 ? estimateRequestFee(callbackGas, subId) : 0;
+    _spendBalance(msgValue);
     address consumerWapper = RandcastConfig.getConsumerWrapperAddress(CONFIG_TABLE_ID, bytes32(0));
-    if (address(this).balance < msgValue || (address(this) != _world() && WorldBalance.getBalance(WORLD_BALANCE_TABLE_ID, _world()) < msgValue)){
-      revert InsufficientBalance();
-    }
     requestId = IConsumerWrapper(consumerWapper).getRandomNumber{ value: msgValue }(
       subId, entityId, callbackGas, _world(), this.fulfillRandomness.selector
     );
@@ -151,8 +151,21 @@ contract RandcastSystem is System {
     return RandcastConfig.getSystemAddress(CONFIG_TABLE_ID, bytes32(0));
   }
 
-  receive() external payable {
-    uint256 balance = WorldBalance.getBalance(WORLD_BALANCE_TABLE_ID, _world());
-    WorldBalance.setBalance(WORLD_BALANCE_TABLE_ID, _world(), balance + msg.value);
+  function _spendBalance(uint256 amount) internal {
+    ResourceId fromNamespaceId = _msgSenderNamespace();
+    uint256 balance = Balances._get(fromNamespaceId);
+    if (balance < amount) {
+      revert InsufficientBalance();
+    }
+    Balances._set(fromNamespaceId, balance - amount);
+  }
+
+  function _msgSenderNamespace() internal view returns (ResourceId) {
+    ResourceId systemId = SystemRegistry._getSystemId(_msgSender());
+    if (ResourceId.unwrap(systemId) == 0) {
+      return ROOT_NAMESPACE_ID;
+    } else {
+      return systemId.getNamespaceId();
+    }
   }
 }

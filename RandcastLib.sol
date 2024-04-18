@@ -7,7 +7,6 @@ import { SystemSwitch } from "@latticexyz/world-modules/src/utils/SystemSwitch.s
 import { SYSTEM_ID } from "../Randcast-Mud-Module/constants.sol";
 import { Randcast } from "../Randcast-Mud-Module/tables/Randcast.sol";
 
-
 function getRandomness(uint64 subId, bytes32 entityId) returns (bytes32 requestId) {
   return abi.decode(
     SystemSwitch.call(SYSTEM_ID, abi.encodeCall(RandcastSystem.getRandomNumber, (subId, entityId))), (bytes32)
@@ -91,4 +90,10 @@ function getCurrentSubId() returns (uint64) {
 
 function getSystemAddress() returns (address) {
   return abi.decode(SystemSwitch.call(SYSTEM_ID, abi.encodeCall(RandcastSystem.getSystemAddress, ())), (address));
+}
+
+function getCoreComponentAddress() returns (address wrapper, address adapter) {
+  if (block.chainid == 1) {
+    return (address(0), address(1));
+  }
 }
