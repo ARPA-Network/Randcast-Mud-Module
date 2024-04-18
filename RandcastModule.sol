@@ -55,8 +55,8 @@ contract RandcastModule is Module {
 
     if (!success) revertWithBytes(data);
     (address consumerWrapperAddress, address adapterAddress) = RandcastLib.getCoreComponentAddress();
-    RandcastConfig._setConsumerWrapperAddress(CONFIG_TABLE_ID, bytes32(0), consumerWrapperAddress);
-    RandcastConfig._setAdapterAddress(CONFIG_TABLE_ID, bytes32(0), adapterAddress);
+    RandcastConfig._setConsumerWrapperAddress(CONFIG_TABLE_ID, consumerWrapperAddress);
+    RandcastConfig._setAdapterAddress(CONFIG_TABLE_ID, adapterAddress);
     // Grant access
     ResourceAccess._set(SYSTEM_ID, consumerWrapperAddress, true);
   }
