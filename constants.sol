@@ -13,4 +13,4 @@ bytes16 constant CONFIG_TABLE_NAME = bytes16("randcastConfig");
 ResourceId constant RANDCAST_TABLE_ID = ResourceId.wrap(bytes32(abi.encodePacked(RESOURCE_TABLE, ROOT_NAMESPACE, RANDCAST_TABLE_NAME)));
 ResourceId constant CONFIG_TABLE_ID =
     ResourceId.wrap(bytes32(abi.encodePacked(RESOURCE_TABLE, ROOT_NAMESPACE, CONFIG_TABLE_NAME)));
-ResourceId constant SYSTEM_ID = ResourceId.wrap((bytes32(abi.encodePacked(RESOURCE_SYSTEM, NAMROOT_NAMESPACEESPACE, SYSTEM_NAME))));
+ResourceId constant SYSTEM_ID = ResourceId.wrap((bytes32(abi.encodePacked(RESOURCE_SYSTEM, ROOT_NAMESPACE, SYSTEM_NAME))));

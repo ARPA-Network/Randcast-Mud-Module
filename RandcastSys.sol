@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.21;
 
 import { IConsumerWrapper } from "./interfaces/IConsumerWrapper.sol";
 import { IAdapter } from "./interfaces/IAdapter.sol";
 import { System } from "@latticexyz/world/src/System.sol";
-import { RANDCAST_TABLE_ID, CONFIG_TABLE_ID, WORLD_BALANCE_TABLE_ID } from "./constants.sol";
+import { RANDCAST_TABLE_ID, CONFIG_TABLE_ID } from "./constants.sol";
 import { Randcast } from "./tables/Randcast.sol";
 import { RandcastConfig } from "./tables/RandcastConfig.sol";
-import { WorldBalance } from "./tables/WorldBalance.sol";
 import { SystemRegistry } from "@latticexyz/world/src/codegen/tables/SystemRegistry.sol";
 import { ResourceId, WorldResourceIdInstance } from "@latticexyz/world/src/WorldResourceId.sol";
 import { ROOT_NAMESPACE_ID } from "@latticexyz/world/src/constants.sol";
+import { Balances } from "@latticexyz/world/src/codegen/tables/Balances.sol";
 // solhint-disable-next-line no-global-import
 
 contract RandcastSystem is System {
@@ -100,9 +100,7 @@ contract RandcastSystem is System {
 
   function fundSubscription(uint64 subId, uint256 fundAmount) external payable {
     address adapter = RandcastConfig.getAdapterAddress(CONFIG_TABLE_ID);
-    if (address(this).balance < fundAmount || (address(this) != _world() && WorldBalance.getBalance(WORLD_BALANCE_TABLE_ID, _world()) < fundAmount)){
-      revert InsufficientBalance();
-    }
+    _spendBalance(fundAmount);
     (bool success,) =
       adapter.call{ value: fundAmount }(abi.encodeWithSelector(IAdapter(adapter).fundSubscription.selector, subId));
     if (!success) {

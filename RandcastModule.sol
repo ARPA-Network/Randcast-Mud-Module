@@ -7,11 +7,12 @@ import { InstalledModules } from "@latticexyz/world/src/codegen/index.sol";
 import { Module } from "@latticexyz/world/src/Module.sol";
 import { WorldContextConsumer } from "@latticexyz/world/src/WorldContext.sol";
 import { revertWithBytes } from "@latticexyz/world/src/revertWithBytes.sol";
+import { ResourceAccess } from "@latticexyz/world/src/codegen/tables/ResourceAccess.sol";
 
 import { Randcast } from "./tables/Randcast.sol";
 import { RandcastConfig } from "./tables/RandcastConfig.sol";
-import { WorldBalance } from "./tables/WorldBalance.sol";
 import { RandcastSystem } from "./RandcastSys.sol";
+import "./RandcastLib.sol" as RandcastLib;
 
 import { MODULE_NAME, RANDCAST_TABLE_ID, CONFIG_TABLE_ID, SYSTEM_ID } from "./constants.sol";
 
@@ -28,12 +29,11 @@ contract RandcastModule is Module {
     return MODULE_NAME;
   }
 
-  function installRoot(bytes memory) public {
+  function installRoot(bytes memory encodedArgs) public {
     // Naive check to ensure this is only installed once
     // TODO: only revert if there's nothing to do
-    if (InstalledModules.getModuleAddress(getName(), keccak256(args)) != address(0)) {
-      revert Module_AlreadyInstalled();
-    }
+    requireNotInstalled(__self, encodedArgs);
+
     IBaseWorld world = IBaseWorld(_world());
 
     // Register table
@@ -41,7 +41,7 @@ contract RandcastModule is Module {
     RandcastConfig._register(CONFIG_TABLE_ID);
 
     // Register system
-    (success, data) =
+    (bool success, bytes memory data) =
       address(world).delegatecall(abi.encodeCall(world.registerSystem, (SYSTEM_ID, randcastSystem, false)));
     if (!success) revertWithBytes(data);
 
@@ -49,7 +49,7 @@ contract RandcastModule is Module {
     (success, data) = address(world).delegatecall(
       abi.encodeCall(
         world.registerRootFunctionSelector,
-        (SYSTEM_ID, "fulfillRandomness(bytes32,uint256,bytes32)", randcastSystem.fulfillRandomness.selector)
+        (SYSTEM_ID, "fulfillRandomness(bytes32,uint256,bytes32)", "fulfillRandomness(bytes32,uint256,bytes32)")
       )
     );
 
