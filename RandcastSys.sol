@@ -60,7 +60,7 @@ contract RandcastSystem is System {
     bytes4 callbackFunctionSelector = Randcast.getCallbackFunctionSelector(RANDCAST_TABLE_ID, entityId);
     if (callbackFunctionSelector != 0) {
       (bool success,) =
-        _world().call(abi.encodeWithSelector(callbackFunctionSelector, abi.encode(requestId, randomness, entityId)));
+        _world().delegatecall(abi.encodeWithSelector(callbackFunctionSelector, abi.encode(requestId, randomness, entityId)));
       if (!success) {
         revert CallbackFailed();
       }
