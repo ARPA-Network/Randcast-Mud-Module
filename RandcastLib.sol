@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.21;
 
 import { System } from "@latticexyz/world/src/System.sol";
 import { RandcastSystem } from "../Randcast-Mud-Module/RandcastSys.sol";
 import { SystemSwitch } from "@latticexyz/world-modules/src/utils/SystemSwitch.sol";
 import { SYSTEM_ID } from "../Randcast-Mud-Module/constants.sol";
 import { Randcast } from "../Randcast-Mud-Module/tables/Randcast.sol";
-
 
 function getRandomness(uint64 subId, bytes32 entityId) returns (bytes32 requestId) {
   return abi.decode(
@@ -91,4 +90,10 @@ function getCurrentSubId() returns (uint64) {
 
 function getSystemAddress() returns (address) {
   return abi.decode(SystemSwitch.call(SYSTEM_ID, abi.encodeCall(RandcastSystem.getSystemAddress, ())), (address));
+}
+
+function getCoreComponentAddress() view returns (address wrapper, address adapter) {
+  if (block.chainid == 1) {
+    return (address(0), address(1));
+  }
 }
