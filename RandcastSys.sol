@@ -2,7 +2,7 @@
 pragma solidity ^0.8.21;
 
 import { IConsumerWrapper } from "./interfaces/IConsumerWrapper.sol";
-import { IAdapter } from "./interfaces/IAdapter.sol";
+import { IRequestTypeBase } from "./interfaces/IRequestTypeBase.sol";
 import { System } from "@latticexyz/world/src/System.sol";
 import { RANDCAST_TABLE_ID, CONFIG_TABLE_ID } from "./constants.sol";
 import { Randcast } from "./tables/Randcast.sol";
@@ -29,9 +29,8 @@ contract RandcastSystem is System {
     uint256 msgValue = subId == 0 ? estimateRequestFee(callbackGas, subId) : 0;
     _spendBalance(msgValue);
     address consumerWapper = RandcastConfig.getConsumerWrapperAddress(CONFIG_TABLE_ID);
-    requestId = IConsumerWrapper(consumerWapper).getRandomNumber{ value: msgValue }(
-      subId, entityId, callbackGas, _world(), this.fulfillRandomness.selector
-    );
+    requestId =
+      IConsumerWrapper(consumerWapper).getRandomness{ value: msgValue }(subId, entityId, callbackGas, _world());
     if (requestId == 0) {
       revert RequestFailed();
     }
@@ -46,21 +45,21 @@ contract RandcastSystem is System {
     uint256 msgValue = subId == 0 ? estimateRequestFee(callbackGas, subId) : 0;
     _spendBalance(msgValue);
     address consumerWapper = RandcastConfig.getConsumerWrapperAddress(CONFIG_TABLE_ID);
-    requestId = IConsumerWrapper(consumerWapper).getRandomNumber{ value: msgValue }(
-      subId, entityId, callbackGas, _world(), this.fulfillRandomness.selector
-    );
+    requestId =
+      IConsumerWrapper(consumerWapper).getRandomness{ value: msgValue }(subId, entityId, callbackGas, _world());
     if (requestId == 0) {
       revert RequestFailed();
     }
   }
 
-  function fulfillRandomness(bytes32 requestId, uint256 randomness, bytes32 entityId) external {
+  function fulfillRandomness(bytes32 entityId, bytes32 requestId, uint256 randomness) external {
     Randcast.setRandomness(RANDCAST_TABLE_ID, entityId, randomness);
     Randcast.setRequestId(RANDCAST_TABLE_ID, entityId, requestId);
     bytes4 callbackFunctionSelector = Randcast.getCallbackFunctionSelector(RANDCAST_TABLE_ID, entityId);
     if (callbackFunctionSelector != 0) {
-      (bool success,) =
-        _world().delegatecall(abi.encodeWithSelector(callbackFunctionSelector, abi.encode(requestId, randomness, entityId)));
+      (bool success,) = _world().delegatecall(
+        abi.encodeWithSelector(callbackFunctionSelector, abi.encode(requestId, randomness, entityId))
+      );
       if (!success) {
         revert CallbackFailed();
       }
@@ -77,76 +76,9 @@ contract RandcastSystem is System {
 
   function estimateRequestFee(uint32 callBackGas, uint64 subId) public view returns (uint256) {
     address consumerWapper = RandcastConfig.getConsumerWrapperAddress(CONFIG_TABLE_ID);
-    return IConsumerWrapper(consumerWapper).estimateFee(subId, callBackGas);
-  }
-
-  function createSubscription() external returns (uint64) {
-    address adapter = RandcastConfig.getAdapterAddress(CONFIG_TABLE_ID);
-    (bool success, bytes memory data) =
-      adapter.call(abi.encodeWithSelector(IAdapter(adapter).createSubscription.selector));
-    if (!success || data.length == 0) {
-      revert SubscriptionCreationFailed();
-    }
-    return abi.decode(data, (uint64));
-  }
-
-  function addConsumer(uint64 subId, address consumer) external {
-    address adapter = RandcastConfig.getAdapterAddress(CONFIG_TABLE_ID);
-    (bool success,) = adapter.call(abi.encodeWithSelector(IAdapter(adapter).addConsumer.selector, subId, consumer));
-    if (!success) {
-      revert ConsumerAdditionFailed();
-    }
-  }
-
-  function fundSubscription(uint64 subId, uint256 fundAmount) external payable {
-    address adapter = RandcastConfig.getAdapterAddress(CONFIG_TABLE_ID);
-    _spendBalance(fundAmount);
-    (bool success,) =
-      adapter.call{ value: fundAmount }(abi.encodeWithSelector(IAdapter(adapter).fundSubscription.selector, subId));
-    if (!success) {
-      revert SubscriptionFundingFailed();
-    }
-  }
-
-  function removeConsumer(uint64 subId, address consumer) external {
-    address adapter = RandcastConfig.getAdapterAddress(CONFIG_TABLE_ID);
-    (bool success,) = adapter.call(abi.encodeWithSelector(IAdapter(adapter).removeConsumer.selector, subId, consumer));
-    if (!success) {
-      revert ConsumerRemovalFailed();
-    }
-  }
-
-  function getLastSubscription(address consumer) external view returns (uint64) {
-    address adapter = RandcastConfig.getAdapterAddress(CONFIG_TABLE_ID);
-    return IAdapter(adapter).getLastSubscription(consumer);
-  }
-
-  function getSubscription(uint64 subId)
-    external
-    view
-    returns (
-      address owner,
-      address[] memory consumers,
-      uint256 balance,
-      uint256 inflightCost,
-      uint64 reqCount,
-      uint64 freeRequestCount,
-      uint64 referralSubId,
-      uint64 reqCountInCurrentPeriod,
-      uint256 lastRequestTimestamp
-    )
-  {
-    address adapter = RandcastConfig.getAdapterAddress(CONFIG_TABLE_ID);
-    return IAdapter(adapter).getSubscription(subId);
-  }
-
-  function getCurrentSubId() external view returns (uint64) {
-    address adapter = RandcastConfig.getAdapterAddress(CONFIG_TABLE_ID);
-    return IAdapter(adapter).getCurrentSubId();
-  }
-
-  function getSystemAddress() external view returns (address) {
-    return RandcastConfig.getSystemAddress(CONFIG_TABLE_ID);
+    bytes memory params;
+    return
+      IConsumerWrapper(consumerWapper).estimateFee(IRequestTypeBase.RequestType.Randomness, subId, params, callBackGas);
   }
 
   function _spendBalance(uint256 amount) internal {
@@ -165,5 +97,9 @@ contract RandcastSystem is System {
     } else {
       return systemId.getNamespaceId();
     }
+  }
+
+  function getSystemAddress() external view returns (address) {
+    return RandcastConfig.getSystemAddress(CONFIG_TABLE_ID);
   }
 }

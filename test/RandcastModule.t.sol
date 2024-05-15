@@ -127,43 +127,6 @@ contract RandcastModuleTest is MudTest, GasReporter {
     vm.stopPrank();
   }
 
-  function testCreateSubIdAndRequest() public {
-    RandcastTestSystem randcastTestSystem = new RandcastTestSystem();
-    vm.startPrank(deployerAddr);
-    IBaseWorld world = IBaseWorld(worldAddress);
-    world.installRootModule(randcastModule, abi.encode(address(wrapper), address(adapter)));
-
-    ResourceId randcastSystemId =
-      WorldResourceIdLib.encode({ typeId: RESOURCE_SYSTEM, namespace: ROOT_NAMESPACE, name: "RandcastSystem" });
-    world.registerSystem(randcastSystemId, randcastTestSystem, false);
-
-    worldAddress.call{ value: 3000000000000000000 }("");
-
-    world.grantAccess(SYSTEM_ID, address(wrapper));
-
-    bytes32 entityId = bytes32(keccak256("entity"));
-    uint64 subId =
-      abi.decode(world.call(randcastSystemId, abi.encodeCall(RandcastTestSystem.createSubscription, ())), (uint64));
-    assertEq(1, subId);
-
-    uint256 fundAmount = abi.decode(
-      world.call(randcastSystemId, abi.encodeCall(RandcastTestSystem.estimateRequestFee, (0, subId))), (uint256)
-    );
-
-    world.call(randcastSystemId, abi.encodeCall(RandcastTestSystem.fundSubscription, (subId, fundAmount)));
-    world.call(randcastSystemId, abi.encodeCall(RandcastTestSystem.addConsumer, (subId, address(wrapper))));
-    bytes32 requestId = abi.decode(
-      world.call(randcastSystemId, abi.encodeCall(RandcastTestSystem.getRandomness, (subId, entityId))), (bytes32)
-    );
-
-    uint256 randomness = 456;
-    adapter.fulfillRandomness(requestId, randomness);
-
-    assertEq(Randcast.getRandomness(RANDCAST_TABLE_ID, entityId), randomness);
-
-    vm.stopPrank();
-  }
-
   function testAccessFormNonRoot() public {
     vm.startPrank(deployerAddr);
     IBaseWorld world = IBaseWorld(worldAddress);

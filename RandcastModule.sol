@@ -49,19 +49,18 @@ contract RandcastModule is Module {
     (success, data) = address(world).delegatecall(
       abi.encodeCall(
         world.registerRootFunctionSelector,
-        (SYSTEM_ID, "fulfillRandomness(bytes32,uint256,bytes32)", "fulfillRandomness(bytes32,uint256,bytes32)")
+        (SYSTEM_ID, "fulfillRandomness(bytes32,bytes32,uint256)", "fulfillRandomness(bytes32,bytes32,uint256)")
       )
     );
 
     if (!success) revertWithBytes(data);
-    (address consumerWrapperAddress, address adapterAddress) = RandcastLib.getCoreComponentAddress();
+    address consumerWrapperAddress = RandcastLib.getCoreComponentAddress();
     RandcastConfig._setConsumerWrapperAddress(CONFIG_TABLE_ID, consumerWrapperAddress);
-    RandcastConfig._setAdapterAddress(CONFIG_TABLE_ID, adapterAddress);
     // Grant access
     ResourceAccess._set(SYSTEM_ID, consumerWrapperAddress, true);
   }
 
-  function install(bytes memory /* args */ ) public pure{
+  function install(bytes memory /* args */ ) public pure {
     revert Module_NonRootInstallNotSupported();
   }
 }
